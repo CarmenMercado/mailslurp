@@ -8,7 +8,7 @@ use MailSlurp\Models\SendEmailOptions;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Request;
 
-class MailslurpController
+class MailSlurpController
 {
     public $config;
 
@@ -20,24 +20,23 @@ class MailslurpController
         return $this->config;
     }
 
-    public function newEmail(Request $request):Response
+    public function sendEmail(Request $request):Response
     {
         $response = new Response();
         $response->headers->set('Content-Type', 'application/json');
         if(!$this->validate($request,$response)[0]){
             return $this->validate($request,$response)[1];
         }
-
-        $inbox_controller = new InboxControllerApi(null, $this->setUp());
+        $inboxController = new InboxControllerApi($param1 = null, $config = $this->setUp());
         try {
-            $inbox_1 = $inbox_controller->createInbox();
-            $send_options = new SendEmailOptions();
-            $send_options->setSubject($request->get('subject'));
-            $send_options->setBody($request-> get('body'));
-            $send_options->setTo([$inbox_1->getEmailAddress(), $request->get('email')]);
+            $inbox = $inboxController->createInbox();
+            $sendOptions = new SendEmailOptions();
+            $sendOptions->setSubject($request->get('subject'));
+            $sendOptions->setBody($request-> get('body'));
+            $sendOptions->setTo([$inbox->getEmailAddress(), $request->get('email')]);
 
             try {
-                $inbox_controller->sendEmail($inbox_1->getId(), $send_options);
+                $inboxController->sendEmail($inbox->getId(), $sendOptions);
                 $response->setContent(json_encode([
                     'status_code' => Response::HTTP_CREATED,
                     'Message' => "Send Email"
