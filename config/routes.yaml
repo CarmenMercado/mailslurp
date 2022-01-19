@@ -7,6 +7,6 @@ kernel:
     type: annotation
 
 mailslurp:
-    path: /send_mail
-    controller: App\Controller\MailslurpController::newEmail
+    path: /send-mail
+    controller: App\Controller\MailSlurpController::sendEmail
     methods:    POST
