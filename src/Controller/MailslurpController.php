@@ -1,8 +1,8 @@
 <?php
 namespace App\Controller;
 
+use MailSlurp\ApiException;
 use MailSlurp\Apis\InboxControllerApi;
-use MailSlurp\Apis\WaitForControllerApi;
 use MailSlurp\Configuration;
 use MailSlurp\Models\SendEmailOptions;
 use Symfony\Component\HttpFoundation\Response;
@@ -12,31 +12,70 @@ class MailslurpController
 {
     public $config;
 
-    public function setUp()
+    private function setUp(): Configuration
     {
         if( $this->config == null){
-            $this->config = Configuration::getDefaultConfiguration()->setApiKey('x-api-key','d7eec2cf7d3241701019794d2666599601602b4f590e79358714e6038fb22707');
+            $this->config = Configuration::getDefaultConfiguration()->setApiKey('x-api-key', $_ENV["API_KEY"]);
         }
         return $this->config;
     }
 
     public function newEmail(Request $request):Response
     {
-        // create inbox and waitFor controllers
+        $response = new Response();
+        $response->headers->set('Content-Type', 'application/json');
+        if(!$this->validate($request,$response)[0]){
+            return $this->validate($request,$response)[1];
+        }
+
         $inbox_controller = new InboxControllerApi(null, $this->setUp());
-        $wait_for_controller = new WaitForControllerApi(null, $this->setUp());
+        try {
+            $inbox_1 = $inbox_controller->createInbox();
+            $send_options = new SendEmailOptions();
+            $send_options->setSubject($request->get('subject'));
+            $send_options->setBody($request-> get('body'));
+            $send_options->setTo([$inbox_1->getEmailAddress(), $request->get('email')]);
 
-        // create two inboxes
-        $inbox_1 = $inbox_controller->createInbox();
+            try {
+                $inbox_controller->sendEmail($inbox_1->getId(), $send_options);
+                $response->setContent(json_encode([
+                    'status_code' => Response::HTTP_CREATED,
+                    'Message' => "Send Email"
+                ]));
+            } catch (ApiException $e) {
+                $response->setContent(json_encode([
+                    'status_code'=>$e->getCode(),
+                    'Message' => $e->getMessage()
+                ]));
+            }
+            return $response;
+        } catch (ApiException $e) {
+            $response->setContent(json_encode([
+                'status_code'=>$e->getCode(),
+                'Message' => $e->getMessage()
+            ]));
+            return $response;
+        }
 
-        // send a confirmation code from inbox1 to inbox2 (sends an actual email)
-        $send_options = new SendEmailOptions();
-        $send_options->setTo([$inbox_1->getEmailAddress(), "test@test.com"]);
-        $send_options->setSubject("Test 18". "carmen@semantic.com");
-        $send_options->setBody("Confirmation code = abc123");
-        $inbox_controller->sendEmail($inbox_1->getId(), $send_options);
-        return new Response(
-            '<html><body>Token'.$inbox_controller->getConfig()->getAccessToken().'</body></html>'
-        );
+        return $response;
     }
+
+    function validate($request, $response): array
+    {
+        if ($request->get('email')==null ||$request->get('subject') == null || $request-> get('body') == null ){
+            $response->setContent(json_encode([
+                'status_code' => Response::HTTP_BAD_REQUEST,
+                'Message' => "Null or invalid files"
+            ]));
+            return [false, $response];
+        }elseif (filter_var($request->get('email'), FILTER_VALIDATE_EMAIL)== false){
+            $response->setContent(json_encode([
+                'status_code' => Response::HTTP_BAD_REQUEST,
+                'Message' => "Invalid email"
+            ]));
+            return [false, $response];
+        }
+        return [true, $response];
+    }
+
 }
