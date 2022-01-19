@@ -5,3 +5,8 @@ controllers:
 kernel:
     resource: ../src/Kernel.php
     type: annotation
+
+mailslurp:
+    path: /send_mail
+    controller: App\Controller\MailslurpController::newEmail
+    methods:    POST
