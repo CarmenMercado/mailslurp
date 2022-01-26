@@ -31,32 +31,35 @@ class MailSlurpController
         try {
             $inbox = $inboxController->createInbox();
             $sendOptions = new SendEmailOptions();
+            $sendOptions->setFrom($inbox->getEmailAddress());
             $sendOptions->setSubject($request->get('subject'));
-            $sendOptions->setBody($request-> get('body'));
-            $sendOptions->setTo([$inbox->getEmailAddress(), $request->get('email')]);
+            $sendOptions->setBody(
+                "Hola! has recibido un correo de: ".$request-> get('email') ." con el asunto:'.".
+                $request-> get('subject')."', que dice: '".$request-> get('body')."'"
+            );
+            $sendOptions->setTo([$inbox->getEmailAddress()]);
 
             try {
-                $inboxController->sendEmail($inbox->getId(), $sendOptions);
+                $result= $inboxController->sendEmailWithHttpInfo($inbox->getId(), $sendOptions);
                 $response->setContent(json_encode([
-                    'status_code' => Response::HTTP_CREATED,
+                    'status_code' => $result[1],
                     'Message' => "Send Email"
                 ]));
+                return $response;
             } catch (ApiException $e) {
+                $response->setStatusCode($e->getCode());
                 $response->setContent(json_encode([
-                    'status_code'=>$e->getCode(),
-                    'Message' => $e->getMessage()
+                    'message' => $e->getMessage()
                 ]));
+                return $response;
             }
-            return $response;
         } catch (ApiException $e) {
+            $response->setStatusCode($e->getCode());
             $response->setContent(json_encode([
-                'status_code'=>$e->getCode(),
-                'Message' => $e->getMessage()
+                'message' => $e->getMessage()
             ]));
             return $response;
         }
-
-        return $response;
     }
 
     function validate($request, $response): array
